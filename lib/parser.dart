@@ -14,24 +14,30 @@ class Parser {
     final tokens = <Token>[];
 
     // Updated only after all other actions have taken place
-    var currentColNumber = 0;
+    var currentColNumber = 1;
 
     // Updated when there is a new line character
-    var currentLineNumber = 0;
+    var currentLineNumber = 1;
+
+    // Updated through each iteration
+    var runningCount = -1;
 
     void bankSequence() {
       final word = sequence.reduce((value, element) => '$value$element');
-      print(word);
       final token = Token.fromString(
         value: word,
         colNumber: currentColNumber - word.length,
         lineNumber: currentLineNumber,
+        startPos: runningCount - word.length,
+        isHighlighted: word == 'const',
+        annotation: word == 'const' ? 'Important' : null,
       );
       tokens.add(token);
       sequence.clear();
     }
 
     for (var c in split) {
+      runningCount++;
       // Switch case on code unit to act on important characters.
       switch (c.codeUnits.first.toRadixString(16)) {
         // Whitespace
@@ -44,6 +50,7 @@ class Parser {
               value: whitespace,
               colNumber: currentColNumber,
               lineNumber: currentLineNumber,
+              startPos: runningCount,
             ),
           );
           currentColNumber++;
@@ -56,9 +63,10 @@ class Parser {
             value: newLine,
             colNumber: currentColNumber,
             lineNumber: currentLineNumber,
+            startPos: runningCount,
           );
           tokens.add(token);
-          currentColNumber = 0;
+          currentColNumber = 1;
           currentLineNumber++;
         case _:
           sequence.add(c);

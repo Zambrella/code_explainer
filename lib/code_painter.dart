@@ -16,7 +16,6 @@ class CodePainter extends CustomPainter {
     final textSpan = TextSpan(
       style: textStyle,
       children: tokens.map((e) {
-        print(e);
         return TextSpan(
           text: e.toString(),
         );
@@ -32,7 +31,29 @@ class CodePainter extends CustomPainter {
     );
     final xCenter = (size.width - textPainter.width) / 2;
     final yCenter = (size.height - textPainter.height) / 2;
+    // This is the top left of the text
     final offset = Offset(xCenter, yCenter);
+
+    final tokensToHighlight = tokens.where((token) => token.isHighlighted);
+
+    for (final token in tokensToHighlight) {
+      final highlightPaint = Paint()
+        ..color = const Color(0xff638965)
+        ..style = PaintingStyle.fill;
+      final start = token.startPos;
+      final end = token.startPos + token.length;
+      final textBox = textPainter
+          .getBoxesForSelection(
+            TextSelection(
+              baseOffset: start,
+              extentOffset: end,
+            ),
+          )
+          .first;
+      final rect = textBox.toRect().shift(offset);
+      canvas.drawRect(rect, highlightPaint);
+    }
+
     textPainter.paint(canvas, offset);
   }
 

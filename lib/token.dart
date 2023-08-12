@@ -5,6 +5,9 @@ class Token implements Equatable {
     required this.value,
     required this.lineNumber,
     required this.colNumber,
+    required this.startPos,
+    this.isHighlighted = false,
+    this.annotation,
   }) : assert(
           lineNumber >= 0 && colNumber >= 0,
           'Cannot have negative lineNumber or column number',
@@ -15,14 +18,21 @@ class Token implements Equatable {
   /// String value of the token.
   final String value;
 
-  /// The line number `this` appears on (i.e. the row). Starts at 0.
+  /// The line number `this` appears on (i.e. the row). Starts at 1.
   final int lineNumber;
 
-  /// The column number the start of `this` appears on. Starts at 0.
+  /// The column number the start of `this` appears on. Starts at 1.
   final int colNumber;
+
+  /// Out of all the tokens, where does `this` start
+  final int startPos;
 
   /// The type of token `this` is. Calculated when constructed.
   late final TokenType type;
+
+  final bool isHighlighted;
+
+  final String? annotation;
 
   int get length => value.length;
 
