@@ -30,7 +30,7 @@ class Parser {
         lineNumber: currentLineNumber,
         startPos: runningCount - word.length,
         isHighlighted: word == 'const',
-        annotation: word == 'const' ? 'Important' : null,
+        annotation: word == 'const' ? 'Very long important annotation explaining this thing in detail' : null,
       );
       tokens.add(token);
       sequence.clear();
