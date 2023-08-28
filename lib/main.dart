@@ -1,6 +1,9 @@
+import 'dart:math';
+
 import 'package:code_explainer/code_painter.dart';
 import 'package:code_explainer/parser.dart';
 import 'package:code_explainer/raw_code.dart';
+import 'package:code_explainer/token.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -39,44 +42,63 @@ class Explainer extends StatefulWidget {
 }
 
 class _ExplainerState extends State<Explainer> {
-  late var tokens = Parser.parse(rawCode);
   late final TextEditingController textEditingController;
 
-  var textPainter = TextPainter(
-    text: TextSpan(text: ''),
-    textDirection: TextDirection.ltr,
-  );
+  // User defined values
+  int maxLineChars = 120;
+  double fontSize = 18.0;
+  double fontHeight = 1.5;
+
+  // Calculated values
+  late double codeWidth;
+  Iterable<Token>? tokens;
+  TextPainter? codeTextPainter;
 
   @override
   void initState() {
     super.initState();
-    textEditingController = TextEditingController();
+    textEditingController = TextEditingController(text: rawCode);
     textEditingController.addListener(onTextChange);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    codeWidth = calculateCodeTextWidth(
+      maxLineChars,
+      fontSize,
+      fontHeight,
+      MediaQuery.of(context).devicePixelRatio,
+    );
   }
 
   void onTextChange() {
     final textValue = textEditingController.text;
     tokens = Parser.parse(textValue);
-    //* Code text
-    const textStyle = TextStyle(
+    final textStyle = TextStyle(
       color: Colors.black,
       fontFamily: 'RobotoMono',
-      fontSize: 24,
-      height: 1.5,
+      fontSize: fontSize,
+      height: fontHeight,
     );
-    final textSpan = TextSpan(
+
+    final codeTextSpan = TextSpan(
       style: textStyle,
-      children: tokens.map((e) {
+      children: tokens?.map((e) {
         return TextSpan(
           text: e.toString(),
         );
       }).toList(),
     );
-    textPainter = TextPainter(
-      text: textSpan,
+
+    codeTextPainter = TextPainter(
+      text: codeTextSpan,
       textDirection: TextDirection.ltr,
-    );
-    // TODO: Use a Layout builder and precompute the size the card needs to be
+    )..layout(
+        maxWidth: codeWidth,
+        minWidth: codeWidth,
+      );
+
     setState(() {});
   }
 
@@ -91,20 +113,40 @@ class _ExplainerState extends State<Explainer> {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        //* Left half - Code
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 4,
-              child: Center(
-                child: CustomPaint(
-                  size: Size.infinite,
-                  painter: CodePainter(tokens, textPainter),
+            child: Center(
+              child: Container(
+                color: Colors.grey[300],
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (textEditingController.text.isEmpty || tokens == null || codeTextPainter == null) {
+                        return const Text('Enter some text');
+                      } else {
+                        return Container(
+                          // To know the height, I need to use a layoutbuilder to get the current width available
+                          // Then pass that into (or in my case half of it) into the layout function of the text painter
+                          height: codeTextPainter!.size.height,
+                          width: double.infinity,
+                          // color: Colors.orange,
+                          child: CustomPaint(
+                            size: Size(double.infinity, min(codeTextPainter!.size.height, constraints.maxHeight)),
+                            painter: CodePainter(tokens!, codeTextPainter!),
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 ),
               ),
             ),
           ),
         ),
+        //* Right half - Editor
         Container(
           width: 600,
           padding: EdgeInsets.all(16),
@@ -125,6 +167,25 @@ class _ExplainerState extends State<Explainer> {
                     fillColor: Colors.grey[20],
                   ),
                 ),
+              ),
+              const SizedBox(height: 8),
+              Slider(
+                min: 80,
+                max: 160,
+                value: maxLineChars.toDouble(),
+                onChanged: (value) {
+                  // TODO: This could be better
+                  setState(() {
+                    maxLineChars = value.round();
+                    codeWidth = calculateCodeTextWidth(
+                      maxLineChars,
+                      fontSize,
+                      fontHeight,
+                      MediaQuery.of(context).devicePixelRatio,
+                    );
+                  });
+                  onTextChange();
+                },
               ),
               const SizedBox(height: 8),
               Container(
@@ -149,4 +210,33 @@ class _ExplainerState extends State<Explainer> {
       ],
     );
   }
+}
+
+/// Get the required width in pixels based on the given [maxLineChars] and [fontSize].
+double calculateCodeTextWidth(
+  int maxLineChars,
+  double fontSize,
+  double fontHeight,
+  double pixelRatio,
+) {
+  final textStyle = TextStyle(
+    color: Colors.black,
+    fontFamily: 'RobotoMono',
+    fontSize: fontSize,
+    height: fontHeight,
+  );
+
+  final singleCharTextSpan = TextSpan(
+    style: textStyle,
+    text: 'a',
+  );
+
+  final TextPainter singleCharTextPainter = TextPainter(
+    text: singleCharTextSpan,
+    textDirection: TextDirection.ltr,
+  )..layout();
+
+  final textWidth = singleCharTextPainter.width * maxLineChars;
+
+  return textWidth / pixelRatio;
 }
