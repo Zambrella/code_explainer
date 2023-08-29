@@ -68,7 +68,7 @@ class _ExplainerState extends State<Explainer> {
       maxLineChars,
       fontSize,
       fontHeight,
-      MediaQuery.of(context).devicePixelRatio,
+      MediaQueryData.fromView(View.of(context)).devicePixelRatio,
     );
   }
 
@@ -169,23 +169,30 @@ class _ExplainerState extends State<Explainer> {
                 ),
               ),
               const SizedBox(height: 8),
-              Slider(
-                min: 80,
-                max: 160,
-                value: maxLineChars.toDouble(),
-                onChanged: (value) {
-                  // TODO: This could be better
-                  setState(() {
-                    maxLineChars = value.round();
-                    codeWidth = calculateCodeTextWidth(
-                      maxLineChars,
-                      fontSize,
-                      fontHeight,
-                      MediaQuery.of(context).devicePixelRatio,
-                    );
-                  });
-                  onTextChange();
-                },
+              SliderTheme(
+                data: const SliderThemeData(
+                  showValueIndicator: ShowValueIndicator.always,
+                ),
+                child: Slider(
+                  min: 40,
+                  max: 160,
+                  divisions: 6,
+                  label: maxLineChars.toString(),
+                  value: maxLineChars.toDouble(),
+                  onChanged: (value) {
+                    // TODO: This could be better
+                    setState(() {
+                      maxLineChars = value.round();
+                      codeWidth = calculateCodeTextWidth(
+                        maxLineChars,
+                        fontSize,
+                        fontHeight,
+                        MediaQueryData.fromView(View.of(context)).devicePixelRatio,
+                      );
+                    });
+                    onTextChange();
+                  },
+                ),
               ),
               const SizedBox(height: 8),
               Container(
