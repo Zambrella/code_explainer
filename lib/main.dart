@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:code_explainer/annotation.dart';
 import 'package:code_explainer/code_painter.dart';
 import 'package:code_explainer/parser.dart';
 import 'package:code_explainer/raw_code.dart';
@@ -48,10 +49,10 @@ class _ExplainerState extends State<Explainer> {
   int maxLineChars = 120;
   double fontSize = 18.0;
   double fontHeight = 1.5;
+  final annotations = <Annotation>[];
 
   // Calculated values
   late double codeWidth;
-  Iterable<Token>? tokens;
   TextPainter? codeTextPainter;
 
   @override
@@ -74,7 +75,6 @@ class _ExplainerState extends State<Explainer> {
 
   void onTextChange() {
     final textValue = textEditingController.text;
-    tokens = Parser.parse(textValue);
     final textStyle = TextStyle(
       color: Colors.black,
       fontFamily: 'RobotoMono',
@@ -84,11 +84,7 @@ class _ExplainerState extends State<Explainer> {
 
     final codeTextSpan = TextSpan(
       style: textStyle,
-      children: tokens?.map((e) {
-        return TextSpan(
-          text: e.toString(),
-        );
-      }).toList(),
+      text: textValue,
     );
 
     codeTextPainter = TextPainter(
@@ -124,7 +120,7 @@ class _ExplainerState extends State<Explainer> {
                   padding: const EdgeInsets.all(8.0),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      if (textEditingController.text.isEmpty || tokens == null || codeTextPainter == null) {
+                      if (textEditingController.text.isEmpty || codeTextPainter == null) {
                         return const Text('Enter some text');
                       } else {
                         return Container(
@@ -135,7 +131,7 @@ class _ExplainerState extends State<Explainer> {
                           // color: Colors.orange,
                           child: CustomPaint(
                             size: Size(double.infinity, min(codeTextPainter!.size.height, constraints.maxHeight)),
-                            painter: CodePainter(tokens!, codeTextPainter!),
+                            painter: CodePainter(annotations, codeTextPainter!),
                           ),
                         );
                       }
@@ -199,15 +195,39 @@ class _ExplainerState extends State<Explainer> {
                 height: 100,
                 color: Theme.of(context).dividerColor,
                 child: Center(
-                  child: Text('Buttons to add highlighter'),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          final selection = textEditingController.selection;
+                          setState(() {
+                            annotations.add(
+                              Annotation(
+                                startIndex: selection.start,
+                                endIndex: selection.end,
+                                text: selection.textInside(textEditingController.text),
+                              ),
+                            );
+                          });
+                        },
+                        icon: const Icon(Icons.add),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
               Expanded(
                 child: Container(
                   color: Theme.of(context).primaryColorLight,
-                  child: const Center(
-                    child: Text('List of highlights'),
+                  child: Center(
+                    child: Column(
+                      children: annotations
+                          .map(
+                            (e) => Text(e.toString()),
+                          )
+                          .toList(),
+                    ),
                   ),
                 ),
               ),

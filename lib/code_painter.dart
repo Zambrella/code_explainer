@@ -1,12 +1,12 @@
 import 'dart:math';
 
-import 'package:code_explainer/token.dart';
+import 'package:code_explainer/annotation.dart';
 import 'package:flutter/material.dart';
 
 class CodePainter extends CustomPainter {
-  const CodePainter(this.tokens, this.textPainter);
+  const CodePainter(this.annotations, this.textPainter);
 
-  final Iterable<Token> tokens;
+  final Iterable<Annotation> annotations;
   final TextPainter textPainter;
 
   @override
@@ -27,16 +27,14 @@ class CodePainter extends CustomPainter {
 
     canvas.drawRect(Rect.fromLTWH(0, 0, textPainter.width, textPainter.height), codeTextBoxPaint);
 
-    final tokensToHighlight = tokens.where((token) => token.isHighlighted);
-
-    for (final token in tokensToHighlight) {
+    for (final annotation in annotations) {
       //* Highlight border
       final highlightPaint = Paint()
         ..color = const Color(0xff638965)
         ..strokeWidth = 3
         ..style = PaintingStyle.stroke;
-      final start = token.startPos;
-      final end = token.startPos + token.length;
+      final start = annotation.startIndex;
+      final end = annotation.endIndex + annotation.length;
       final textBox = textPainter
           .getBoxesForSelection(
             TextSelection(
@@ -66,7 +64,7 @@ class CodePainter extends CustomPainter {
       );
       final annotationTextSpan = TextSpan(
         style: annotationStyle,
-        text: token.annotation,
+        text: annotation.text,
       );
       final annotationTextPainter = TextPainter(
         text: annotationTextSpan,
