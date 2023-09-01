@@ -1,11 +1,13 @@
 import 'dart:math';
 
 import 'package:code_explainer/annotation.dart';
+import 'package:code_explainer/annotation_list_item.dart';
 import 'package:code_explainer/code_painter.dart';
-import 'package:code_explainer/parser.dart';
 import 'package:code_explainer/raw_code.dart';
-import 'package:code_explainer/token.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:screenshot/screenshot.dart';
+import 'dart:io' as io;
 
 void main() {
   runApp(const MainApp());
@@ -44,6 +46,7 @@ class Explainer extends StatefulWidget {
 
 class _ExplainerState extends State<Explainer> {
   late final TextEditingController textEditingController;
+  late final screenshotController = ScreenshotController();
 
   // User defined values
   int maxLineChars = 120;
@@ -111,35 +114,65 @@ class _ExplainerState extends State<Explainer> {
       children: [
         //* Left half - Code
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Center(
-              child: Container(
-                color: Colors.grey[300],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      if (textEditingController.text.isEmpty || codeTextPainter == null) {
-                        return const Text('Enter some text');
-                      } else {
-                        return Container(
-                          // To know the height, I need to use a layoutbuilder to get the current width available
-                          // Then pass that into (or in my case half of it) into the layout function of the text painter
-                          height: codeTextPainter!.size.height,
-                          width: double.infinity,
-                          // color: Colors.orange,
-                          child: CustomPaint(
-                            size: Size(double.infinity, min(codeTextPainter!.size.height, constraints.maxHeight)),
-                            painter: CodePainter(annotations, codeTextPainter!),
-                          ),
-                        );
-                      }
-                    },
+                  padding: const EdgeInsets.all(16.0),
+                  child: Screenshot(
+                    controller: screenshotController,
+                    child: Container(
+                      color: Colors.grey[300],
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            if (textEditingController.text.isEmpty || codeTextPainter == null) {
+                              return const Text('Enter some text');
+                            } else {
+                              return Container(
+                                // To know the height, I need to use a layoutbuilder to get the current width available
+                                // Then pass that into (or in my case half of it) into the layout function of the text painter
+                                height: codeTextPainter!.size.height,
+                                width: double.infinity,
+                                // color: Colors.orange,
+                                child: CustomPaint(
+                                  size: Size(double.infinity, min(codeTextPainter!.size.height, constraints.maxHeight)),
+                                  painter: CodePainter(annotations, codeTextPainter!),
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+              ElevatedButton(
+                onPressed: () async {
+                  final image = await screenshotController.capture(
+                    pixelRatio: MediaQueryData.fromView(View.of(context)).devicePixelRatio,
+                  );
+                  String? outputFile = await FilePicker.platform.saveFile(
+                    dialogTitle: 'Please select an output file:',
+                    fileName: 'Annotation-output.png',
+                    type: FileType.image,
+                  );
+                  if (outputFile == null) {
+                    return;
+                  }
+                  try {
+                    io.File returnedFile = io.File(outputFile);
+                    await returnedFile.writeAsBytes(image!);
+                  } catch (e) {
+                    print(e);
+                  }
+                },
+                child: Text('Download'),
+              ),
+            ],
           ),
         ),
         //* Right half - Editor
@@ -164,7 +197,9 @@ class _ExplainerState extends State<Explainer> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+              Text('Line width: $maxLineChars'),
+              const SizedBox(height: 4),
               SliderTheme(
                 data: const SliderThemeData(
                   showValueIndicator: ShowValueIndicator.always,
@@ -176,7 +211,6 @@ class _ExplainerState extends State<Explainer> {
                   label: maxLineChars.toString(),
                   value: maxLineChars.toDouble(),
                   onChanged: (value) {
-                    // TODO: This could be better
                     setState(() {
                       maxLineChars = value.round();
                       codeWidth = calculateCodeTextWidth(
@@ -191,43 +225,77 @@ class _ExplainerState extends State<Explainer> {
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                height: 100,
-                color: Theme.of(context).dividerColor,
-                child: Center(
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () {
-                          final selection = textEditingController.selection;
-                          setState(() {
-                            annotations.add(
-                              Annotation(
-                                startIndex: selection.start,
-                                endIndex: selection.end,
-                                text: selection.textInside(textEditingController.text),
-                              ),
-                            );
-                          });
-                        },
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
               Expanded(
                 child: Container(
                   color: Theme.of(context).primaryColorLight,
                   child: Center(
-                    child: Column(
-                      children: annotations
+                    child: Column(children: [
+                      ...annotations
                           .map(
-                            (e) => Text(e.toString()),
+                            (e) => AnnotationListItem(
+                              annotation: e,
+                              onDelete: (annotationToDelete) {
+                                setState(() {
+                                  annotations.removeWhere((annotation) => annotation == annotationToDelete);
+                                });
+                              },
+                            ),
                           )
                           .toList(),
-                    ),
+                      ...[
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final selection = textEditingController.selection;
+                              final textController = TextEditingController();
+                              final annotation = await showDialog<Annotation>(
+                                context: context,
+                                builder: (context) {
+                                  return SimpleDialog(
+                                    contentPadding: const EdgeInsets.all(32),
+                                    titleTextStyle: Theme.of(context).textTheme.titleLarge,
+                                    title: const Text(
+                                      'Annotation',
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    children: [
+                                      SizedBox(
+                                        width: 700,
+                                        child: TextField(
+                                          maxLines: null,
+                                          controller: textController,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop(
+                                            Annotation(
+                                              startIndex: selection.start,
+                                              endIndex: selection.end,
+                                              text: textController.text,
+                                            ),
+                                          );
+                                        },
+                                        child: const Text('Submit'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                              if (mounted && annotation != null) {
+                                setState(() {
+                                  annotations.add(annotation);
+                                });
+                              }
+                            },
+                            icon: Icon(Icons.add),
+                            label: Text('Add annotation'),
+                          ),
+                        ),
+                      ]
+                    ]),
                   ),
                 ),
               ),

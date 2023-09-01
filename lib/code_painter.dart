@@ -11,17 +11,13 @@ class CodePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final xCenter = 0.0; //(size.width - textPainter.width) / 2;
-    final yCenter = 0.0; //(size.height - textPainter.height) / 2;
+    const xCenter = 0.0; //(size.width - textPainter.width) / 2;
+    const yCenter = 0.0; //(size.height - textPainter.height) / 2;
     // This is the top left of the text
-    final offset = Offset(xCenter, yCenter);
+    const offset = Offset(xCenter, yCenter);
 
     final codeWidth = textPainter.width;
     final remainingSpace = size.width - codeWidth;
-
-    if (remainingSpace < 200) {
-      print('Throw error here');
-    }
 
     final codeTextBoxPaint = Paint()..color = Colors.yellow;
 
@@ -34,16 +30,20 @@ class CodePainter extends CustomPainter {
         ..strokeWidth = 3
         ..style = PaintingStyle.stroke;
       final start = annotation.startIndex;
-      final end = annotation.endIndex + annotation.length;
-      final textBox = textPainter
-          .getBoxesForSelection(
-            TextSelection(
-              baseOffset: start,
-              extentOffset: end,
-            ),
-          )
-          .first;
-      final rect = textBox.toRect().shift(offset).inflate(2);
+      final end = annotation.endIndex;
+      final textBox = textPainter.getBoxesForSelection(
+        TextSelection(
+          baseOffset: start,
+          extentOffset: end,
+        ),
+      );
+
+      var finalRect = textBox.first.toRect();
+      for (final element in textBox) {
+        finalRect = finalRect.expandToInclude(element.toRect());
+      }
+
+      final rect = finalRect.shift(offset).inflate(2);
       final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
       canvas.drawRRect(rrect, highlightPaint);
 
@@ -71,7 +71,6 @@ class CodePainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       );
       annotationTextPainter.layout(
-        // minWidth: size.width / 2 - 25,
         maxWidth: remainingSpace - 25,
       );
       final lineMetrics = annotationTextPainter.computeLineMetrics();
